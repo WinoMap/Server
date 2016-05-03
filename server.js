@@ -1,39 +1,44 @@
 //Lets require/import the HTTP module
 var http = require('http');
-var sleep = require('sleep');
 var util = require('util');
 
 //Lets define a port we want to listen to
 const PORT=8042;
-var value = [0,0];
 
 var winos = [{
     id: 1,
     x:0,
-    y:0,
-    radius: 4,
-    main: true
-},
-{
-    id: 2,
-    x:0,
-    y:0,
-    radius: 2,
+    y:1,
+    radius: {4: 3, 5:1.5},
     main: false
 },
 {
     id: 3,
     x:4,
     y:0,
-    radius:4,
+    radius: {4: 6, 5: 3},
+    main: false
+},
+{
+    id: 8,
+    x:0,
+    y:4,
+    radius: {4: 2, 5: 4},
     main: false
 },
 {
     id: 4,
-    x:0,
-    y:4,
-    radius: 4,
-    main: false
+    x:1,
+    y:5,
+    radius: {},
+    main: true
+},
+{
+    id: 5,
+    x:6,
+    y:3,
+    radius: {},
+    main: true
 }];
 
 //We need a function which handles requests and send response
@@ -42,12 +47,9 @@ function handleRequest(request, response){
 	response.writeHead(200, {
 		'Access-Control-Allow-Origin': 'http://localhost:8080',
 		'Access-Control-Allow-Credentials': 'true'
-	});
-	if(request.url == '/init/'){
-		response.write(JSON.stringify(winos));
-	}else{
-		response.write('[' + value + ']');
-	}
+	});/*
+	if(request.url == '/init/'){*/
+	response.write(JSON.stringify(winos));
     response.end('');
 }
 
@@ -65,14 +67,12 @@ process.stdin.setEncoding('utf8');
 process.stdin.on('data', function (text) {
 	console.log('received data:', util.inspect(text));
 	if(text == "\u001b\[A\n"){
-		value[1] -= 1;
+		winos[0].radius['4'] -= 0.5;
 	}else if(text == "\u001b\[C\n"){
-		value[0] += 1;
+		winos[0].radius['4'] += 0.5;
 	}else if(text == "\u001b\[B\n"){
-		value[1] += 1;
+		winos[0].radius['4'] += 0.5;
 	}else if(text == "\u001b\[D\n"){
-		value[0] -= 1;
-	}else{
-		value = JSON.parse(text);
+		winos[0].radius['4'] -= 0.5;
 	}
 });
