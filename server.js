@@ -6,7 +6,10 @@ var axios = require('axios');
 
 //Lets define a port we want to listen to
 const PORT=8079;
-const API_URL = 'http://localhost:8042/pushWinos';
+
+var HOST = '192.168.77.231';
+const PORT_API = '8080';
+var URL = 'http://' + HOST + ':' + PORT_API;
 
 //We need a function which handles requests and send response
 function handleRequest(request, response){
@@ -17,14 +20,18 @@ function handleRequest(request, response){
 	});
 
     if(request.url == '/getWinos') {
+        //We send the datas to the client
         var options = {
-            host: 'localhost',
-            port: 8042,
+            host: HOST,
+            port: PORT_API,
             path: '/getWinos'
         };
         var callback = function(apiResponse) {
-            var str = '';
-            apiResponse.on('data', function(chunk) {
+	    	var str = '';
+			
+			console.log('receiving');
+			
+			apiResponse.on('data', function(chunk) {
                 str += chunk;
             });
             apiResponse.on('end', function(){
@@ -33,9 +40,14 @@ function handleRequest(request, response){
             });
         }
 
-        http.request(options, callback).end();
+	var request = http.request(options, callback);
+	request.on('error', function(err) {
+		console.log('error ' + URL );	
+	});
+	request.end();
+
     } else if (request.url == '/pushWinos') {
-        // We send receive then follow the data to the API
+        // We receive datas then follow them to the API
 
         // Receive
         var requestBody = '';
@@ -47,21 +59,48 @@ function handleRequest(request, response){
         });
 
         request.on('end', function() {
-            console.log('data received : '+requestBody);
+			var date = new Date();	
+			var min = date.getMinutes();
+			var sec = date.getSeconds();	
+			console.log('['+min+']['+sec+']data received : '+requestBody);
+
+
+			response.writeHead(200);
+			response.end();
 
             // Emit data to the API after reception completes
             // Should be by TCP protocol after testing
-            axios.post(API_URL,
-                requestBody, {
-              headers: { 
-                "Content-Type": "application/x-www-form-urlencoded"
-              }
-            }).then(function(response) {
+		    axios.post(URL+'/pushWinos',
+				requestBody, {
+        	    	headers: { 
+            	    	"Content-Type": "application/x-www-form-urlencoded"
+              		}
+            	}).then(function(response) {
                 console.log(response);
-            });
+            	});
 
         });
-    }
+	} else if (request.url == '/pushState') {
+		// We change the Back-End state depending of what we receive
+		var requestBody = '';
+		request.on('data', function(data) {
+			requestBody += data;
+			if(requestBody.length > 1e7){
+				response.writeHead(413, 'request Entity Too Large', {'Content-Type': 'text/html'});
+			}
+		});
+
+		request.on('end', function() {
+			console.log('data received : '+requestBody);
+			var datas = JSON.parse(requestBody);		
+			HOST = datas.ip;
+			URL = 'http://' + HOST + ':' + PORT_API;
+			
+			response.writeHead(200);
+
+		});
+	response.end();
+	}
 }
 
 //Create a server
@@ -70,7 +109,7 @@ var server = http.createServer(handleRequest);
 //Lets start our server
 server.listen(PORT, function(){
     //Callback triggered when server is successfully listening. Hurray!
-    console.log("Back-end on: http://localhost:%s", PORT);
+    console.log("Back-end on:"+URL);
 });
 
 process.stdin.resume();
